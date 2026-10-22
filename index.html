@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#050706">
+<title>THE LAST TAB</title>
+<style>
+:root{--bg:#050706;--panel:#0a100d;--green:#8bffad;--muted:#789081;--red:#ff3434;--line:#284233}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:var(--bg);color:#d8e6dc;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:10;opacity:.15;background:repeating-linear-gradient(0deg,transparent 0 3px,#000 4px 5px)}
+body:after{content:"";position:fixed;inset:-30%;pointer-events:none;z-index:9;background:radial-gradient(ellipse,transparent 35%,#000 75%);opacity:.75}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);color:var(--green);background:#0a130e;padding:12px 15px;min-height:44px}
+button:hover,button:focus{background:#14281b;outline:1px solid var(--green)}
+button:disabled{opacity:.3;cursor:not-allowed}
+#app{height:100dvh;max-width:1100px;margin:auto;padding:clamp(10px,2.5vw,24px);display:flex;flex-direction:column;gap:12px;position:relative;z-index:1}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.logo{font-weight:900;letter-spacing:.18em;color:var(--green);font-size:clamp(15px,3vw,22px)}
+#status{font-size:11px;color:var(--muted);text-align:right}
+#layout{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:12px;min-height:0;flex:1}
+#scene{position:relative;overflow:hidden;border:1px solid #203528;min-height:260px;background:#07100b}
+#sceneCanvas{position:absolute;width:100%;height:100%;inset:0}
+#sceneLabel{position:absolute;top:12px;left:12px;color:#9db9a4;font-size:11px;letter-spacing:.15em;text-shadow:0 0 8px #000}
+#flash{position:absolute;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 54%,transparent 0 12%,rgba(0,0,0,.2) 28%,rgba(0,0,0,.9) 75%);transition:opacity .2s}
+#flash.off{opacity:.98}
+#prompt{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);background:#050806e8;border:1px solid #35513e;padding:10px 12px;text-align:center;font-size:12px;max-width:90%;white-space:normal}
+#side{display:flex;flex-direction:column;gap:10px;min-height:0}
+.panel{border:1px solid var(--line);background:linear-gradient(145deg,#0b130e,#070a08);padding:12px}
+.panel h2{margin:0 0 9px;color:var(--green);font-size:12px;letter-spacing:.14em}
+#log{font-size:12px;line-height:1.55;overflow:auto;min-height:100px;max-height:26vh;color:#c4d3c8;white-space:pre-wrap}
+#inventory{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:10px;border:1px solid #35513e;padding:5px 7px;color:#a9c7b2}
+#clues{font-size:12px;line-height:1.8;color:#adc2b2}
+#controls{display:flex;gap:8px;flex-wrap:wrap}
+#controls button{flex:1}
+#mobileControls{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-width:340px;margin:0 auto;width:100%}
+#mobileControls button{padding:9px;min-height:42px}
+#mobileControls .blank{visibility:hidden}
+#overlay{position:fixed;inset:0;z-index:20;background:radial-gradient(ellipse at center,#0d1b12 0,#030504 75%);display:flex;align-items:center;justify-content:center;padding:20px}
+#overlay.hidden{display:none}
+.modal{max-width:620px;width:100%;border:1px solid #3c6547;background:#050a07;padding:clamp(20px,5vw,42px);box-shadow:0 0 70px #102b19}
+.kicker{font-size:11px;letter-spacing:.24em;color:var(--muted)}
+h1{font-size:clamp(36px,9vw,72px);line-height:.95;letter-spacing:-.06em;color:var(--green);margin:18px 0}
+#introText{font-size:14px;line-height:1.8;color:#bdcfc2}
+#startBtn{margin-top:14px;width:100%;font-weight:bold;letter-spacing:.12em}
+#flashOverlay{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:0;background:#fff;transition:opacity .07s}
+#flashOverlay.hit{opacity:.95}
+#jumpscare{display:none;position:fixed;inset:0;z-index:14;background:#050505;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+#jumpscare.show{display:flex;animation:shake .09s infinite}
+.face{font-size:clamp(100px,30vw,250px);color:#f4f4f4;text-shadow:0 0 18px red;line-height:1}
+#scareText{font-size:clamp(18px,5vw,34px);color:red;font-weight:900;letter-spacing:.2em}
+@keyframes shake{0%{transform:translate(2px,-1px)}50%{transform:translate(-2px,2px)}100%{transform:translate(1px,2px)}}
+@media(max-width:740px){
+ #app{padding:10px;gap:8px}
+ #layout{grid-template-columns:1fr;grid-template-rows:minmax(230px,1fr) auto;gap:8px}
+ #side{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+ .panel{padding:9px}
+ #log{min-height:54px;max-height:90px;font-size:11px}
+ #clues{font-size:11px}
+ #mobileControls{max-width:none}
+ #scene{min-height:230px}
+}
+@media(max-height:650px) and (min-width:741px){#log{max-height:17vh}#scene{min-height:180px}}
+</style>
+</head>
+<body>
+<div id="app">
+ <header><div class="logo">▌ THE LAST TAB</div><div id="status">SIGNAL: UNSTABLE<br>SUBJECT: UNKNOWN</div></header>
+ <div id="layout">
+  <main id="scene" aria-label="Game scene">
+   <canvas id="sceneCanvas"></canvas>
+   <div id="sceneLabel">ROOM 01 / NO EXIT FOUND</div><div id="flash"></div>
+   <div id="prompt">Press START to begin.</div>
+  </main>
+  <aside id="side">
+   <section class="panel"><h2>TERMINAL LOG</h2><div id="log">Waiting for connection…</div></section>
+   <section class="panel"><h2>POCKET</h2><div id="inventory"><span class="chip">EMPTY</span></div></section>
+   <section class="panel"><h2>RECOVERED CLUES</h2><div id="clues">□ Note in the drawer<br>□ A name in the dark<br>□ The terminal password</div></section>
+   <section class="panel"><h2>CONTROLS</h2><div id="controls"><button id="interactBtn">INTERACT</button><button id="lightBtn">FLASHLIGHT: ON</button></div></section>
+  </aside>
+ </div>
+ <div id="mobileControls" aria-label="Movement controls">
+  <span class="blank"></span><button data-move="forward">▲</button><span class="blank"></span>
+  <button data-move="left">◀</button><button data-move="back">▼</button><button data-move="right">▶</button>
+ </div>
+</div>
+<div id="overlay"><div class="modal">
+ <div class="kicker">AN INTERACTIVE PSYCHOLOGICAL HORROR EXPERIENCE</div>
+ <h1>THE LAST<br>TAB<span style="color:#ff3434">_</span></h1>
+ <div id="introText">Your screen wakes before you do.<br><br>A terminal is open. The door is locked. Someone has left three clues inside this room.<br><br><span style="color:#8bffad">A new message appears:</span><br><em>“Don't trust the first thing you see.”</em><br><br>Use the arrow controls to explore. Find the clues, solve the terminal, and leave. Keep your flashlight close.</div>
+ <button id="startBtn">[ ENTER THE ROOM ]</button>
+ <div class="kicker" style="margin-top:16px">HEADPHONES OPTIONAL · FLASHING LIGHTS MAY OCCUR</div>
+</div></div>
+<div id="flashOverlay"></div>
+<div id="jumpscare"><div class="face">◉</div><div id="scareText">I SAW YOU LOOKING</div></div>
+<script>
+(() => {
+"use strict";
+const $=id=>document.getElementById(id);
+const canvas=$("sceneCanvas"),ctx=canvas.getContext("2d");
+const state={started:false,x:0,y:0,dir:0,light:true,inventory:[],clues:0,terminal:false,ended:false,steps:0,scareCooldown:0,seen:new Set(),log:[],sound:null};
+const objects=[
+ {id:"drawer",name:"Desk drawer",x:-2,y:3,kind:"drawer",text:"Inside the drawer is a folded note. The handwriting looks almost like yours.",item:"Folded note"},
+ {id:"mirror",name:"Cracked mirror",x:2,y:2,kind:"mirror",text:"Your reflection is delayed by half a second. Scratched into the glass: ECHO.",item:"Name: ECHO"},
+ {id:"terminal",name:"Old terminal",x:0,y:-3,kind:"terminal",text:"The terminal asks for a password. The note and mirror seem to be telling you something.",item:null},
+ {id:"door",name:"Exit door",x:0,y:5,kind:"door",text:"The door has three locks. The last one is warm, as if someone is holding it from the other side.",item:null},
+ {id:"radio",name:"Dead radio",x:-3,y:-1,kind:"radio",text:"A burst of static. Under it, a whisper: “It only moves when you stop watching.”",item:"Static recording"}
+];
+function log(msg){state.log.unshift(msg);state.log=state.log.slice(0,7);$("log").textContent=state.log.join("\n\n")}
+function updateUI(){
+ $("inventory").innerHTML=state.inventory.length?state.inventory.map(x=>`<span class="chip">${x}</span>`).join(""):'<span class="chip">EMPTY</span>';
+ $("clues").innerHTML=`${state.clues>=1?"☑":"□"} Note in the drawer<br>${state.clues>=2?"☑":"□"} A name in the dark<br>${state.clues>=3?"☑":"□"} The terminal password`;
+ $("lightBtn").textContent="FLASHLIGHT: "+(state.light?"ON":"OFF");
+ $("flash").classList.toggle("off",!state.light);
+ $("status").innerHTML=`SIGNAL: ${state.ended?"RESTORED":"UNSTABLE"}<br>CLUES: ${state.clues}/3`;
+}
+function resize(){const r=$("scene").getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.floor(r.width*dpr);canvas.height=Math.floor(r.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);draw()}
+window.addEventListener("resize",resize);
+function draw(){
+ const w=$("scene").clientWidth,h=$("scene").clientHeight;if(!w||!h)return;
+ ctx.clearRect(0,0,w,h);
+ const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,"#101c14");g.addColorStop(.55,"#07100b");g.addColorStop(1,"#020403");ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+ // perspective room
+ ctx.strokeStyle=state.light?"#24402d":"#0c1b11";ctx.lineWidth=1;
+ ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(w*.5,h*.38);ctx.lineTo(w,0);ctx.moveTo(0,h);ctx.lineTo(w*.5,h*.38);ctx.lineTo(w,h);ctx.moveTo(0,h*.22);ctx.lineTo(w*.5,h*.38);ctx.lineTo(w,h*.22);ctx.stroke();
+ ctx.fillStyle="#0a130d";ctx.fillRect(w*.37,h*.18,w*.26,h*.45);ctx.strokeStyle="#35533c";ctx.strokeRect(w*.37,h*.18,w*.26,h*.45);
+ ctx.fillStyle="#14271a";ctx.fillRect(w*.405,h*.27,w*.19,h*.14);
+ ctx.fillStyle=state.terminal?"#b5ffbf":"#4b9960";ctx.font=`${Math.max(8,w*.018)}px monospace`;ctx.fillText(state.terminal?"ACCESS GRANTED":"NO SIGNAL",w*.42,h*.32);
+ ctx.fillStyle="#0b120d";ctx.fillRect(w*.16,h*.61,w*.26,h*.07);ctx.fillRect(w*.19,h*.68,w*.025,h*.16);ctx.fillRect(w*.37,h*.68,w*.025,h*.16);
+ // visible objects vary by proximity and flashlight
+ const spots=[{x:.25,y:.53,label:"DRAWER",id:"drawer"},{x:.75,y:.55,label:"MIRROR",id:"mirror"},{x:.78,y:.76,label:"RADIO",id:"radio"},{x:.5,y:.8,label:"EXIT",id:"door"}];
+ spots.forEach(o=>{let seen=state.seen.has(o.id);ctx.globalAlpha=seen?.9:.45;ctx.fillStyle=o.id==="mirror"?"#304c3b":"#17271c";ctx.fillRect(w*o.x-16,h*o.y-15,32,30);ctx.strokeStyle=state.light?"#50745a":"#17291c";ctx.strokeRect(w*o.x-16,h*o.y-15,32,30);ctx.fillStyle="#a4c8ac";ctx.font="9px monospace";ctx.textAlign="center";ctx.fillText(o.label,w*o.x,h*o.y+26);ctx.textAlign="left";ctx.globalAlpha=1});
+ // ominous silhouette sometimes appears in far doorway
+ if(state.steps>5 && !state.ended && Math.random()<.012){ctx.fillStyle="#000";ctx.beginPath();ctx.ellipse(w*.51,h*.48,10,19,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="#ff3030";ctx.fillRect(w*.505,h*.45,3,2);ctx.fillRect(w*.52,h*.45,3,2)}
+ // flashlight vignette
+ if(state.light){const vg=ctx.createRadialGradient(w*.5,h*.58,5,w*.5,h*.58,Math.max(w,h)*.65);vg.addColorStop(0,"rgba(0,0,0,0)");vg.addColorStop(.55,"rgba(0,0,0,.08)");vg.addColorStop(1,"rgba(0,0,0,.8)");ctx.fillStyle=vg;ctx.fillRect(0,0,w,h)}
+}
+function nearest(){return objects.map(o=>({...o,d:Math.hypot(o.x-state.x,o.y-state.y)})).filter(o=>o.d<3.2).sort((a,b)=>a.d-b.d)[0]}
+function setPrompt(){const o=nearest();$("prompt").textContent=o?`[ INTERACT ] ${o.name}`:"Move with the arrows. Listen carefully.";draw()}
+function scare(message="I SAW YOU LOOKING"){
+ const el=$("jumpscare");$("scareText").textContent=message;el.classList.add("show");
+ const flash=$("flashOverlay");flash.classList.add("hit");
+ setTimeout(()=>flash.classList.remove("hit"),90);
+ setTimeout(()=>el.classList.remove("show"),900);
+ try{if(state.sound){const ac=state.sound,osc=ac.createOscillator(),gain=ac.createGain();osc.type="sawtooth";osc.frequency.setValueAtTime(120,ac.currentTime);osc.frequency.exponentialRampToValueAtTime(38,ac.currentTime+.35);gain.gain.setValueAtTime(.22,ac.currentTime);gain.gain.exponentialRampToValueAtTime(.001,ac.currentTime+.5);osc.connect(gain);gain.connect(ac.destination);osc.start();osc.stop(ac.currentTime+.5)}}catch(e){}
+}
+function interact(){
+ if(!state.started||state.ended)return;
+ const o=nearest();if(!o){log("Your fingers brush cold wallpaper. Nothing else is close enough.");return}
+ state.seen.add(o.id);
+ if(o.id==="drawer"&&!state.seen.has("drawer-item")){state.seen.add("drawer-item");state.clues=Math.max(state.clues,1);state.inventory.push("Folded note");log("NOTE: “The name you need is not the name you were given. Look into the room that looks back.”");$("sceneLabel").textContent="ROOM 01 / A NOTE REMEMBERED";updateUI()}
+ else if(o.id==="mirror"&&!state.seen.has("mirror-item")){state.seen.add("mirror-item");state.clues=Math.max(state.clues,2);state.inventory.push("Name: ECHO");log("The mirror fogs from the inside. E C H O appears in the glass. Behind your reflection, a shape lifts its head.");updateUI();if(Math.random()<.55)setTimeout(()=>scare("DON'T TURN AROUND"),300)}
+ else if(o.id==="terminal"){
+   if(state.clues<2){log("TERMINAL: PASSWORD REQUIRED. Find the note and inspect the mirror.");}
+   else if(!state.terminal){const answer=prompt("TERMINAL PASSWORD\nHint: the name written in the mirror.");if(answer===null)return;if(answer.trim().toUpperCase()==="ECHO"){state.terminal=true;state.clues=3;state.inventory.push("Exit code: 041");log("ACCESS GRANTED. A final line types itself: “YOU WERE NEVER ALONE IN THIS ROOM.” The exit unlocks.");updateUI();setTimeout(()=>scare("WELCOME BACK"),700)}else{log("ACCESS DENIED. The terminal types: “THAT'S NOT WHAT I CALLED YOU.”");if(Math.random()<.6)scare("WRONG");}}
+   else log("TERMINAL: EXIT CODE 041. The door is waiting.");
+ } else if(o.id==="door"){
+   if(state.terminal){win()}else{log("The door refuses to move. Three locks remain. Somewhere behind it, someone taps three times.");}
+ }else if(o.id==="radio"){if(!state.seen.has("radio-item")){state.seen.add("radio-item");state.inventory.push("Static recording")}log(o.text);if(Math.random()<.3)scare("STAY WITH ME");}
+ else log(o.text);
+ updateUI();setPrompt();
+}
+function win(){state.ended=true;$("overlay").classList.remove("hidden");$("introText").innerHTML='The locks click open one by one.<br><br>You step through the doorway. The room behind you goes dark.<br><br>Then your phone lights up with one final message:<br><br><span style="color:#ff3434">“THANK YOU FOR LETTING ME OUT.”</span><br><br><span style="color:#8bffad">ENDING 01: THE LAST TAB</span>';$("startBtn").textContent="[ PLAY AGAIN ]";$("status").innerHTML="SIGNAL: RESTORED<br>ENDING: 01";log("ESCAPE CONFIRMED. Or something that looks like escape.");}
+function move(dir){
+ if(!state.started||state.ended)return;
+ const step=.8;const dirs={forward:[0,-step],back:[0,step],left:[-step,0],right:[step,0]};
+ const [dx,dy]=dirs[dir];state.x=Math.max(-4,Math.min(4,state.x+dx));state.y=Math.max(-4,Math.min(6,state.y+dy));state.steps++;
+ if(state.steps===3)log("A whisper from somewhere behind you: “You found the door already?”");
+ if(state.steps>4&&Math.random()<.12)log(["The lights flicker. You hear a second set of footsteps.","Your shadow is facing the wrong direction.","A notification appears, then vanishes.","The terminal clicks, though you are nowhere near it."][Math.floor(Math.random()*4)]);
+ if(state.steps>6&&Math.random()<.16&&Date.now()>state.scareCooldown){state.scareCooldown=Date.now()+5000;scare(["I CAN SEE YOU","DON'T BLINK","BEHIND YOU"][Math.floor(Math.random()*3)])}
+ setPrompt();
+}
+function start(){
+ state.started=true;state.ended=false;state.x=0;state.y=0;state.clues=0;state.terminal=false;state.steps=0;state.inventory=[];state.seen.clear();state.log=[];$("overlay").classList.add("hidden");log("CONNECTION ESTABLISHED.\n\nTERMINAL: “Find what was left for you. Do not trust the first thing you see.”");$("sceneLabel").textContent="ROOM 01 / NO EXIT FOUND";updateUI();resize();
+ try{state.sound=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}
+}
+$("startBtn").addEventListener("click",start);
+$("interactBtn").addEventListener("click",interact);
+$("lightBtn").addEventListener("click",()=>{state.light=!state.light;updateUI();draw();if(!state.light)log("Darkness presses against the edges of your vision.")});
+document.querySelectorAll("[data-move]").forEach(b=>{b.addEventListener("click",()=>move(b.dataset.move));});
+window.addEventListener("keydown",e=>{const k=e.key.toLowerCase();const map={arrowup:"forward",w:"forward",arrowdown:"back",s:"back",arrowleft:"left",a:"left",arrowright:"right",d:"right",e:"interact"};if(map[k]){e.preventDefault();map[k]==="interact"?interact():move(map[k])}if(k==="f"){$("lightBtn").click()}});
+$("scene").addEventListener("click",()=>{if(state.started)interact()});
+resize();updateUI();
+})();
+</script>
+</body>
+</html>
